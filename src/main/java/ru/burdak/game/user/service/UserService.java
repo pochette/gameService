@@ -4,6 +4,8 @@ package ru.burdak.game.user.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.burdak.game.activity.dto.ActivityRequestDto;
+import ru.burdak.game.activity.model.Activity;
 import ru.burdak.game.activity.repository.ActivityRepository;
 import ru.burdak.game.common.exception.user.CountryChangeNotAllowedException;
 import ru.burdak.game.common.exception.user.UserNotFoundException;
@@ -48,8 +50,11 @@ public class UserService {
   }
 
   @Transactional
+  public void saveActivity(UUID userId, ActivityRequestDto dto) {
+    var user = userRepository.findById(userId).orElseThrow(
+      () -> new UserNotFoundException("Пользователь с ID= %s не найден".formatted(userId)));
+    var activity = new Activity(user, dto.activity(), Instant.now());
+    activityRepository.save(activity);
+    }
 
-
-  //var user = userRepository.findById(id).orElseThrow(
-  //  () -> new UserNotFoundException("Пользователь с ID= %s не найден".formatted(id)));
 }

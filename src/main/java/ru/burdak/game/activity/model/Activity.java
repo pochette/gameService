@@ -10,17 +10,25 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import ru.burdak.game.user.model.User;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "activities")
-@Getter
+@Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Activity {
+  public Activity(User user, long activity, Instant receivedAt) {
+    this.user = user;
+    this.activity = activity;
+    this.receivedAt = receivedAt;
+  }
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -32,6 +40,6 @@ public class Activity {
   @Column(name = "activity", nullable = false)
   private long activity;
 
-  @Column(name = "last_visited_at", nullable = false)
-  private Instant lastVisitedAt;
+  @Column(name = "received_at", nullable = false)
+  private Instant receivedAt;
 }
