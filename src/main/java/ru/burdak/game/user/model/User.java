@@ -1,11 +1,9 @@
 package ru.burdak.game.user.model;
 
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,14 +17,17 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table("users")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Table(name = "users", indexes = {
+  @Index(name = "idx_users_country_money_id",
+  columnList = "country, money, id"),
+  @Index(name = "idx_users_country_created_at",
+  columnList = "country, created_at")
+})
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
 public class User {
   @Id
-  private UUID uuid;
+  private UUID id;
 
   @Column(name = "money", nullable = false)
   private Long money;
@@ -38,6 +39,6 @@ public class User {
   @Column(columnDefinition = "jsonb", nullable = false)
   private JsonNode state;
 
-  @Column(name = "created_at", nullable = false, updatable = false)
+  @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "timestamp(6) with time zone")
   private Instant createdAt;
 }

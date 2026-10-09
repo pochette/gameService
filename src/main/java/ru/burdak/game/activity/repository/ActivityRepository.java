@@ -2,10 +2,12 @@ package ru.burdak.game.activity.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import ru.burdak.game.activity.model.Activity;
+import ru.burdak.game.user.model.User;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.List;
 
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
-  Optional<Activity> findByUser_Uuid(UUID uuid);
+
+  List<Activity> findAllByUserAndReceivedAtGreaterThanEqualAndReceivedAtLessThanOrderByReceivedAtAsc(User user, Instant than, Instant than1);
 }

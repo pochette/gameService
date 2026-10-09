@@ -15,7 +15,7 @@ public class ErrorHandler {
   @ResponseStatus(HttpStatus.NOT_FOUND)
   @ExceptionHandler(UserNotFoundException.class)
   public ApiError userNotFoundHandler(UserNotFoundException e) {
-    log.warn("Пользователь не найден");
+    log.warn("Пользователь не найден {}", e.getMessage());
     return new ApiError(
       HttpStatus.NOT_FOUND.getReasonPhrase(),
       "Пользователь не найден");
@@ -24,7 +24,7 @@ public class ErrorHandler {
   @ResponseStatus(HttpStatus.CONFLICT)
   @ExceptionHandler(CountryChangeNotAllowedException.class)
   public ApiError countryChangeNotAllowedHandler(CountryChangeNotAllowedException e) {
-    log.warn("Изменение страны пользователя запрещено");
+    log.warn("Изменение страны пользователя запрещено {}", e.getMessage());
     return new ApiError(
       "COUNTRY_IMMUTABLE",
       "Изменение страны пользователя запрещено"
@@ -32,12 +32,22 @@ public class ErrorHandler {
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
-  @ExceptionHandler(IllegalStateException.class, IllegalArgumentException.class)
+  @ExceptionHandler(IllegalStateException.class)
   public ApiError illegalStateExceptionHandler(IllegalStateException e) {
-    log.warn("Передан некорректное состояние объекта");
+    log.warn("Передан некорректное состояние объекта {}", e.getMessage());
     return new ApiError(
       "ILLEGAL_STATE_EXCEPTION",
       "Передан некорректное состояние объекта"
+    );
+  }
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ApiError illegalArgumentExceptionHandler(IllegalArgumentException e) {
+    log.warn("Некорректные параметры запроса: {}", e.getMessage());
+
+    return new ApiError(
+      "INVALID_ARGUMENT",
+      e.getMessage()
     );
   }
 
