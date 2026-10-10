@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.burdak.game.activity.dto.ActivityRequestDto;
 import ru.burdak.game.activity.dto.ActivityResponseDto;
 import ru.burdak.game.activity.service.ActivityService;
+import ru.burdak.game.common.validation.RequestValidator;
+import tools.jackson.databind.JsonNode;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -28,13 +30,15 @@ import java.util.UUID;
 @Slf4j
 public class ActivityController {
   private final ActivityService activityService;
+  private final RequestValidator requestValidator;
 
   @PostMapping
   public void saveActivity(HttpServletRequest request,
                            @PathVariable(name = "userId") UUID userId,
-                           @RequestBody @Valid ActivityRequestDto dto) {
+                           @RequestBody @Valid JsonNode body) {
+    long activity = requestValidator.requiredLong(body, "activity");
     log.info("Получен запрос {} {} на сохранение активности пользователя с UUID {}", request.getMethod(), request.getRequestURI(), userId);
-    activityService.saveActivity(userId, dto);
+    activityService.saveActivity(userId, activity);
   }
 
   @GetMapping
@@ -47,4 +51,5 @@ public class ActivityController {
     log.info("Параметры запроса: from={}, to={}", from, to);
     return activityService.getActivitiesByUserId(userId, from.toInstant(), to.toInstant());
   }
+
 }

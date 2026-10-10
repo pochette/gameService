@@ -13,6 +13,7 @@ import ru.burdak.game.user.dto.UserStateResponseDto;
 import ru.burdak.game.user.dto.UserTopResponseDto;
 import ru.burdak.game.user.model.User;
 import ru.burdak.game.user.repository.UserRepository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,34 +24,45 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
   private final UserRepository userRepository;
+  private final ObjectMapper objectMapper;
 
   @Transactional
-  public void setOrUpdateUsersState(UUID id, UserStateRequestDto dto) {
-    if (dto.state() == null || !dto.state().isObject()) {
-      throw new IllegalArgumentException("Поле 'state' обязательно и должно быть");
-    }
 
-    var countryNode = dto.state().path("country");
-    if (!countryNode.isString() || countryNode.asString().isBlank()) {
+  public void setOrUpdateUsersState(UUID id, UserStateRequestDto dto) {
+
+    var money = dto.getMoney();
+    var country = dto.getCountry();
+
+    if (country==null || country.isBlank()) {
       throw new IllegalArgumentException("Поле 'country' обязательно и должно быть непустой строкой");
     }
-    var country = countryNode.asString();
 
-    var moneyNode = dto.state().path("money");
-    if (!moneyNode.isIntegralNumber() || !moneyNode.canConvertToLong()) {
+    if (money==null) {
       throw new IllegalArgumentException(
         "Поле 'money' обязательно и должно быть целым числом в диапазоне long"
       );
     }
-    var money = moneyNode.asLong();
+
 
     var user = userRepository.findById(id)
-      .orElseGet(() -> new User(id, money, country, dto.state(), Instant.now()));
+      .orElseGet(() -> new User(id, money, country, null, Instant.now()));
+
     if (!Objects.equals(country, user.getCountry())) {
       throw new CountryChangeNotAllowedException("Запрещено менять страну пользователя");
     }
-    user.setState(dto.state());
+
+    var state = objectMapper.createObjectNode();
+
+    dto.getAdditionalFields().forEach(
+      state::set
+    );
+
+    state.put("money", dto.getMoney());
+    state.put("country", dto.getCountry());
+
+    user.setState(state);
     user.setMoney(money);
+
     userRepository.save(user);
   }
 

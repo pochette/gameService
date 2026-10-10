@@ -21,11 +21,11 @@ public class ActivityService {
   private final UserRepository userRepository;
 
   @Transactional
-  public void saveActivity(UUID userId, ActivityRequestDto dto) {
+  public void saveActivity(UUID userId,  long activity) {
     var user = userRepository.findById(userId).orElseThrow(
       () -> new UserNotFoundException("Пользователь с ID= %s не найден".formatted(userId)));
-    var activity = new Activity(user, dto.activity(), Instant.now());
-    activityRepository.save(activity);
+    var activityEntity = new Activity(user, activity, Instant.now());
+    activityRepository.save(activityEntity);
   }
 
   @Transactional(readOnly = true)
