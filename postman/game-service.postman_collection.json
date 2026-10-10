@@ -1,0 +1,931 @@
+{
+  "info": {
+    "name": "Game Service - Endpoint Checks",
+    "description": "Run the entire collection in order with Collection Runner. Request 01 creates fresh UUIDs, a unique alphabetic country and a UTC period around the current time. Tests match the current API: wrapped user state and numeric new-user count. Test users remain in the database. No authentication is configured.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "secondUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "unknownUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "country",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "from",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "to",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Create first user (initialize variables)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const v = pm.collectionVariables;",
+              "['userId','secondUserId','unknownUserId'].forEach(k => v.set(k, pm.variables.replaceIn('{{$guid}}')));",
+              "v.set('country', 'TEST' + pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').replace(/[0-9]/g, c => String.fromCharCode(65 + Number(c))).toUpperCase());",
+              "v.set('from', new Date(Date.now() - 86400000).toISOString());",
+              "v.set('to', new Date(Date.now() + 86400000).toISOString());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 1500,\n  \"country\": \"{{country}}\",\n  \"level\": 17,\n  \"inventory\": {\n    \"sword\": 2,\n    \"potion\": 5\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 Read original state",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Original state and unknown fields preserved', () => { const b=pm.response.json(); pm.expect(b.userId).to.eql(pm.collectionVariables.get('userId')); pm.expect(b.state).to.deep.eql({money:1500,country:pm.collectionVariables.get('country'),level:17,inventory:{sword:2,potion:5}}); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state"
+      }
+    },
+    {
+      "name": "03 Create second user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{secondUserId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 3000,\n  \"country\": \"{{country}}\",\n  \"level\": 25\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "04 Replace first user state",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 4500,\n  \"country\": \"{{country}}\",\n  \"level\": 18,\n  \"quest\": {\n    \"name\": \"first-race\",\n    \"completed\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "05 Read replaced state",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Full replacement preserved', () => { const b=pm.response.json(); pm.expect(b.userId).to.eql(pm.collectionVariables.get('userId')); pm.expect(b.state).to.deep.eql({money:4500,country:pm.collectionVariables.get('country'),level:18,quest:{name:'first-race',completed:true}}); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state"
+      }
+    },
+    {
+      "name": "06 Reject country change",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); pm.expect(b.code).to.eql('COUNTRY_IMMUTABLE'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 9999,\n  \"country\": \"DE\",\n  \"level\": 99\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "07 Verify rejected update changed nothing",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Full replacement preserved', () => { const b=pm.response.json(); pm.expect(b.userId).to.eql(pm.collectionVariables.get('userId')); pm.expect(b.state).to.deep.eql({money:4500,country:pm.collectionVariables.get('country'),level:18,quest:{name:'first-race',completed:true}}); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state"
+      }
+    },
+    {
+      "name": "08 Save activity 42",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/activities",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"activity\": 42\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 Save activity 100",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/activities",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"activity\": 100\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "10 Read activity history",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Two separate events ordered by time', () => { const b=pm.response.json(); pm.expect(b).to.have.lengthOf(2); pm.expect(b.map(x=>x.activity).sort((a,c)=>a-c)).to.deep.eql([42,100]); b.forEach(x=>{ pm.expect(x.userId).to.eql(pm.collectionVariables.get('userId')); pm.expect(Date.parse(x.receivedAt)).to.be.at.least(Date.parse(pm.collectionVariables.get('from'))); pm.expect(Date.parse(x.receivedAt)).to.be.below(Date.parse(pm.collectionVariables.get('to'))); }); pm.expect(Date.parse(b[0].receivedAt)).to.be.at.most(Date.parse(b[1].receivedAt)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/activities?from={{from}}&to={{to}}"
+      }
+    },
+    {
+      "name": "11 Existing user without activities",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Empty history', () => pm.expect(pm.response.json()).to.deep.eql([]));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{secondUserId}}/activities?from={{from}}&to={{to}}"
+      }
+    },
+    {
+      "name": "12 Top users",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Top ordered by money', () => pm.expect(pm.response.json()).to.deep.eql([{userId:pm.collectionVariables.get('userId'),money:4500},{userId:pm.collectionVariables.get('secondUserId'),money:3000}]));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/top?country={{country}}&limit=10"
+      }
+    },
+    {
+      "name": "13 Top limit",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Limit respected', () => pm.expect(pm.response.json()).to.deep.eql([{userId:pm.collectionVariables.get('userId'),money:4500}]));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/top?country={{country}}&limit=1"
+      }
+    },
+    {
+      "name": "14 New user count after updates",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Updates do not create users', () => pm.expect(pm.response.json()).to.eql(2));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/statistics/new-users?country={{country}}&from={{from}}&to={{to}}"
+      }
+    },
+    {
+      "name": "15 Set equal money",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{secondUserId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 4500,\n  \"country\": \"{{country}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "16 Top tie ordered by UUID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('UUID tie-break order', () => { const b=pm.response.json(); pm.expect(b).to.have.lengthOf(2); pm.expect(b.map(x=>x.money)).to.deep.eql([4500,4500]); pm.expect(b.map(x=>x.userId)).to.deep.eql([pm.collectionVariables.get('userId'),pm.collectionVariables.get('secondUserId')].sort()); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/top?country={{country}}&limit=10"
+      }
+    },
+    {
+      "name": "17 Unknown user state",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); pm.expect(b.code).to.eql('USER_NOT_FOUND'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{unknownUserId}}/state"
+      }
+    },
+    {
+      "name": "18 Unknown user activity POST",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); pm.expect(b.code).to.eql('USER_NOT_FOUND'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{unknownUserId}}/activities",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"activity\": 42\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "19 Unknown user activity GET",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); pm.expect(b.code).to.eql('USER_NOT_FOUND'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{unknownUserId}}/activities?from={{from}}&to={{to}}"
+      }
+    },
+    {
+      "name": "20 Invalid UUID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/not-a-uuid/state"
+      }
+    },
+    {
+      "name": "21 Missing country",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": 100\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "22 Invalid money type",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"money\": \"abc\",\n  \"country\": \"{{country}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "23 Missing activity",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/activities",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "24 Invalid limit",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/top?country={{country}}&limit=101"
+      }
+    },
+    {
+      "name": "25 Invalid time interval",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/activities?from={{from}}&to={{from}}"
+      }
+    },
+    {
+      "name": "26 Malformed JSON",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"money\":100,",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "27 State exceeds 10240 bytes",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.set('oversizedState', JSON.stringify({money:100,country:pm.collectionVariables.get('country'),payload:'x'.repeat(10240)}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 413', () => pm.response.to.have.status(413));",
+              "pm.test('JSON error', () => { const b = pm.response.json(); pm.expect(b.code).to.be.a('string'); pm.expect(b.message).to.be.a('string'); pm.expect(b.code).to.eql('STATE_TOO_LARGE'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state",
+        "body": {
+          "mode": "raw",
+          "raw": "{{oversizedState}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "28 Verify invalid requests changed nothing",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Full replacement preserved', () => { const b=pm.response.json(); pm.expect(b.userId).to.eql(pm.collectionVariables.get('userId')); pm.expect(b.state).to.deep.eql({money:4500,country:pm.collectionVariables.get('country'),level:18,quest:{name:'first-race',completed:true}}); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/users/{{userId}}/state"
+      }
+    }
+  ]
+}
