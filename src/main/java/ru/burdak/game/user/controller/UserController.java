@@ -60,6 +60,7 @@ public class UserController {
     }
 
     requestValidator.requiredLong(state, "money");
+    requestValidator.requiredCountry(state);
 
     var dto = objectMapper.treeToValue(state, UserStateRequestDto.class);
 

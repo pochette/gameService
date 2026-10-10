@@ -16,4 +16,14 @@ public class RequestValidator {
     }
     return value.asLong();
   }
+
+  public String requiredCountry(JsonNode body) {
+    var value = body.path("country");
+
+    if (!value.isString() || !value.asString().matches("[A-Za-z]+")) {
+      throw new IllegalArgumentException(
+        "Поле 'country' обязательно и должно быть непустой строкой из латинских букв");
+    }
+    return value.asString();
+  }
 }
