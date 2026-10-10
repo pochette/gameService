@@ -20,10 +20,15 @@ public class RequestValidator {
   public String requiredCountry(JsonNode body) {
     var value = body.path("country");
 
-    if (!value.isString() || !value.asString().matches("[A-Za-z]+")) {
+    if (!value.isString()) {
       throw new IllegalArgumentException(
-        "Поле 'country' обязательно и должно быть непустой строкой из латинских букв");
+        "Поле 'country' обязательно должно быть строкой");
     }
-    return value.asString();
+    var country = value.asString();
+    if (!country.matches("[A-Za-z]{1,255}")) {
+      throw new IllegalArgumentException(
+        "Поле 'country' должно содержать от 1 до 255 латинских букв");
+    }
+    return country;
   }
 }

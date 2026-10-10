@@ -21,13 +21,13 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -42,7 +42,6 @@ class UserServiceTest {
   private UUID userId;
   private User user1;
   private UserStateRequestDto requestDto1;
-
 
   @BeforeEach
   void setUp() {
@@ -72,72 +71,25 @@ class UserServiceTest {
   }
 
   @Test
-  void shouldUpdateExistingUserState() {
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user1));
-
-    service.setOrUpdateUsersState(userId, requestDto1);
-
-    assertThat(user1.getMoney()).isEqualTo(1500L);
-    assertThat(user1.getCountry()).isEqualTo("US");
-    assertThat(user1.getCreatedAt()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
-
-    var expectedState = objectMapper.createObjectNode();
-    expectedState.put("money", 1500L);
-    expectedState.put("country", "US");
-    expectedState.put("level", 17);
-    expectedState.putObject("inventory").put("sword", 2).put("potion", 5);
-
-    assertThat(user1.getState()).isEqualTo(expectedState);
-
-    var response = service.getLastSavedState(userId);
-
-    assertThat(response.userId()).isEqualTo(userId);
-    assertThat(response.state()).isEqualTo(expectedState);
-
-    verify(userRepository).save(user1);
-  }
-
-  @Test
   void shouldRejectCountryChange() {
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user1));
-    var previousState = user1.getState().deepCopy();
-    var requestDto2 = objectMapper.readValue("""
-                                               {
-                                                               "money": 999,
-                                                               "country": "CA",
-                                                               "level": 999,
-                                                               "inventory": {
-                                                                   "sword": 999,
-                                                                   "potion": 999
-                                                               }
-                                                           }
-                                               
-                                               """, UserStateRequestDto.class);
-    assertThatThrownBy(() -> service.setOrUpdateUsersState(userId, requestDto2))
-      .isInstanceOf(CountryChangeNotAllowedException.class);
+    var requestDto2 = objectMapper.readValue(
+      """
+        {"money":999,"country":"CA"}
+        """, UserStateRequestDto.class);
 
-    assertThat(user1.getState()).isEqualTo(previousState);
-    assertThat(user1.getCountry()).isEqualTo("US");
-    assertThat(user1.getMoney()).isEqualTo(1000L);
-    assertThat(user1.getCreatedAt()).isEqualTo(Instant.parse("2026-01-01T00:00:00Z"));
-    verify(userRepository, never()).save(any(User.class));
+    when(userRepository.upsertState(
+      eq(userId),
+      eq(999L),
+      eq("CA"),
+      anyString(),
+      any(Instant.class)
+    )).thenReturn(0);
+
+    assertThatThrownBy(
+      () -> service.setOrUpdateUsersState(userId, requestDto2)
+    ).isInstanceOf(CountryChangeNotAllowedException.class);
   }
-  @Test
-  void shouldCreateUser() {
-    when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-    service.setOrUpdateUsersState(userId, requestDto1);
-
-    var captor = ArgumentCaptor.forClass(User.class);
-    verify(userRepository).save(captor.capture());
-
-    assertThat(captor.getValue())
-      .extracting(User::getId, User::getMoney, User::getCountry)
-      .containsExactly(userId, 1500L, "US");
-    assertThat(captor.getValue().getCreatedAt()).isNotNull();
-    assertThat(captor.getValue().getState().path("level").asInt())
-      .isEqualTo(17);
-  }
 
   @Test
   void shouldRejectMissingMoney() {
@@ -161,5 +113,40 @@ class UserServiceTest {
       PageRequest.of(0, 1, Sort.by("money").descending()
         .and(Sort.by("id").ascending()))
     );
+  }
+
+  @Test
+  void shouldPassStateToUpsert() {
+    when(userRepository.upsertState(
+      eq(userId),
+      eq(1500L),
+      eq("US"),
+      anyString(),
+      any(Instant.class)
+    )).thenReturn(1);
+
+    service.setOrUpdateUsersState(userId, requestDto1);
+
+    var stateCaptor = ArgumentCaptor.forClass(String.class);
+
+    verify(userRepository).upsertState(
+      eq(userId),
+      eq(1500L),
+      eq("US"),
+      stateCaptor.capture(),
+      any(Instant.class)
+    );
+
+    var expectedState = objectMapper.readTree("""
+                                                {
+                                                  "money":1500,
+                                                  "country":"US",
+                                                  "level":17,
+                                                  "inventory":{"sword":2,"potion":5}
+                                                }
+                                                """);
+
+    assertThat(objectMapper.readTree(stateCaptor.getValue()))
+      .isEqualTo(expectedState);
   }
 }

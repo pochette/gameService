@@ -11,13 +11,11 @@ import ru.burdak.game.common.exception.user.UserNotFoundException;
 import ru.burdak.game.user.dto.UserStateRequestDto;
 import ru.burdak.game.user.dto.UserStateResponseDto;
 import ru.burdak.game.user.dto.UserTopResponseDto;
-import ru.burdak.game.user.model.User;
 import ru.burdak.game.user.repository.UserRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -33,37 +31,27 @@ public class UserService {
     var money = dto.getMoney();
     var country = dto.getCountry();
 
-    if (country==null || country.isBlank()) {
+    if (country == null || country.isBlank()) {
       throw new IllegalArgumentException("Поле 'country' обязательно и должно быть непустой строкой");
     }
 
-    if (money==null) {
+    if (money == null) {
       throw new IllegalArgumentException(
         "Поле 'money' обязательно и должно быть целым числом в диапазоне long"
       );
     }
 
-
-    var user = userRepository.findById(id)
-      .orElseGet(() -> new User(id, money, country, null, Instant.now()));
-
-    if (!Objects.equals(country, user.getCountry())) {
-      throw new CountryChangeNotAllowedException("Запрещено менять страну пользователя");
-    }
-
     var state = objectMapper.createObjectNode();
-
-    dto.getAdditionalFields().forEach(
-      state::set
-    );
-
+    dto.getAdditionalFields().forEach(state::set);
     state.put("money", dto.getMoney());
     state.put("country", dto.getCountry());
 
-    user.setState(state);
-    user.setMoney(money);
-
-    userRepository.save(user);
+    int changedRows = userRepository.upsertState(id, money, country, objectMapper.writeValueAsString(state), Instant.now());
+    if (changedRows == 0) {
+      throw new CountryChangeNotAllowedException(
+        "Запрещено менять страну пользователя"
+      );
+    }
   }
 
   @Transactional(readOnly = true)

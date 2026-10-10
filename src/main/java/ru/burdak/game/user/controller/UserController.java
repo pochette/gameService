@@ -6,6 +6,7 @@ import jakarta.validation.Validator;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -83,7 +84,11 @@ public class UserController {
 
   @GetMapping("/top")
   public List<UserTopResponseDto> getTopUserByCountry(HttpServletRequest request,
-                                                      @RequestParam(name = "country") @NotBlank String country,
+
+                                                      @RequestParam(name = "country")
+                                                      @NotBlank @Pattern(regexp = "[A-Za-z]{1,255}")
+                                                      String country,
+
                                                       @RequestParam(name = "limit") @Min(1) @Max(100) Integer limit) {
     log.info("Получен запрос {} {} на получение списка {} топ-игроков страны {} ", request.getMethod(),
              request.getRequestURI(), limit, country);

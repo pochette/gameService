@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import ru.burdak.game.activity.dto.ActivityRequestDto;
 import ru.burdak.game.activity.dto.ActivityResponseDto;
 import ru.burdak.game.activity.service.ActivityService;
 import ru.burdak.game.common.validation.RequestValidator;
@@ -51,5 +50,4 @@ public class ActivityController {
     log.info("Параметры запроса: from={}, to={}", from, to);
     return activityService.getActivitiesByUserId(userId, from.toInstant(), to.toInstant());
   }
-
 }

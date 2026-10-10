@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -23,6 +22,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -117,6 +119,191 @@ public class UserApiIntegrationTest {
     }
     finally {
       userRepository.deleteAllById(ids);
+    }
+  }
+
+  @Test
+  void shouldSaveSameUserConcurrently() throws Exception {
+    var userId = UUID.randomUUID();
+    var firstBody = """
+      {"money":1000,"country":"US","level":10}
+      """;
+    var secondBody = """
+      {"money":2000,"country":"US","level":20}
+      """;
+    var start = new CyclicBarrier(2);
+
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var first = executor.submit(() -> {
+        start.await(5, TimeUnit.SECONDS);
+        return putState(userId, firstBody);
+      });
+      var second = executor.submit(() -> {
+        start.await(5, TimeUnit.SECONDS);
+        return putState(userId, secondBody);
+      });
+
+      assertThat(first.get(20, TimeUnit.SECONDS).getStatusCode()).isEqualTo(HttpStatus.OK);
+      assertThat(second.get(20, TimeUnit.SECONDS).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+      var user = userRepository.findById(userId).orElseThrow();
+      var state = objectMapper.readTree(user.getState().toString());
+      assertThat(state).isIn(objectMapper.readTree(firstBody), objectMapper.readTree(secondBody));
+      assertThat(user.getMoney()).isEqualTo(state.path("money").asLong());
+      assertThat(user.getCountry()).isEqualTo("US");
+    }
+    finally {
+      userRepository.deleteById(userId);
+    }
+  }
+
+  @Test
+  void shouldReplaceStateAndReturnLatestState() {
+    var userId = UUID.randomUUID();
+    var initialBody =
+      """
+          {
+                "money": 1000,
+                "country": "US",
+                "oldField": "must disappear",
+                "inventory": {"sword": 1}
+              }
+        """;
+    var updatedBody =
+      """
+         {
+              "money": 2500,
+              "country": "US",
+              "level": 18,
+              "inventory": {"potion": 5},
+              "custom": {
+                "enabled": true,
+                "tags": ["first", "second"],
+                "value": null
+              }
+            }
+        """;
+    try {
+      assertThat(putState(userId, initialBody).getStatusCode()).isEqualTo(HttpStatus.OK);
+      var createdAt = userRepository.findById(userId).orElseThrow().getCreatedAt();
+
+      assertThat(putState(userId, updatedBody).getStatusCode()).isEqualTo(HttpStatus.OK);
+      var response = restTemplate.getForEntity(
+        "/users/{userId}/state",
+        String.class, userId);
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+      var responseBody = objectMapper.readTree(response.getBody());
+      var expectedState = objectMapper.readTree(updatedBody);
+
+      assertThat(responseBody.path("userId").asString()).isEqualTo(userId.toString());
+      assertThat(responseBody.path("state")).isEqualTo(expectedState);
+
+      var savedUser = userRepository.findById(userId).orElseThrow();
+
+      assertThat(savedUser.getState()).isEqualTo(expectedState);
+      assertThat(savedUser.getMoney()).isEqualTo(2500L);
+      assertThat(savedUser.getCountry()).isEqualTo("US");
+      assertThat(savedUser.getCreatedAt()).isEqualTo(createdAt);
+    }
+    finally {
+      userRepository.deleteById(userId);
+    }
+  }
+
+  @Test
+  void shouldRejectCountryChangeWithoutChangingSavedState() {
+    var userId = UUID.randomUUID();
+    var initialBody = """
+      {
+        "money": 1500,
+        "country": "US",
+        "level": 17,
+        "inventory": {"sword": 2, "potion": 5}
+      }
+      """;
+    var rejectedBody = """
+      {
+        "money": 9999,
+        "country": "CA",
+        "level": 99,
+        "unexpectedField": true
+      }
+      """;
+
+    try {
+      assertThat(putState(userId, initialBody).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+      var createdAt = userRepository.findById(userId).orElseThrow().getCreatedAt();
+      var rejectedResponse = putState(userId, rejectedBody);
+
+      assertThat(rejectedResponse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+      assertThat(objectMapper.readTree(rejectedResponse.getBody()).path("code").asString()).isEqualTo("COUNTRY_IMMUTABLE");
+
+      var response = restTemplate.getForEntity(
+        "/users/{userId}/state",
+        String.class,
+        userId);
+
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+      var expectedState = objectMapper.readTree(initialBody);
+
+      assertThat(objectMapper.readTree(response.getBody()).path("state")).isEqualTo(expectedState);
+
+      var savedUser = userRepository.findById(userId).orElseThrow();
+
+      assertThat(savedUser.getState()).isEqualTo(expectedState);
+      assertThat(savedUser.getCreatedAt()).isEqualTo(createdAt);
+      assertThat(savedUser.getMoney()).isEqualTo(1500L);
+      assertThat(savedUser.getCountry()).isEqualTo("US");
+    }
+    finally {
+      userRepository.deleteById(userId);
+    }
+  }
+
+  @Test
+  void shouldValidateCountryLengthWithoutChangingSavedState() {
+    var userId = UUID.randomUUID();
+    var validCountry = "A".repeat(255);
+    var invalidCountry = "A".repeat(256);
+
+    var initialBody = """
+      {"money":1500,"country":"%s","level":17}
+      """.formatted(validCountry);
+
+    var invalidBody = """
+      {"money":9999,"country":"%s","level":99}
+      """.formatted(invalidCountry);
+
+    try {
+      assertThat(putState(userId, initialBody).getStatusCode())
+        .isEqualTo(HttpStatus.OK);
+
+      var createdAt = userRepository.findById(userId)
+        .orElseThrow()
+        .getCreatedAt();
+
+      var response = putState(userId, invalidBody);
+
+      assertThat(response.getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+      assertThat(
+        objectMapper.readTree(response.getBody())
+          .path("code").asString()
+      ).isEqualTo("INVALID_ARGUMENT");
+
+      var savedUser = userRepository.findById(userId).orElseThrow();
+
+      assertThat(savedUser.getState())
+        .isEqualTo(objectMapper.readTree(initialBody));
+      assertThat(savedUser.getMoney()).isEqualTo(1500L);
+      assertThat(savedUser.getCountry()).isEqualTo(validCountry);
+      assertThat(savedUser.getCreatedAt()).isEqualTo(createdAt);
+    }
+    finally {
+      userRepository.deleteById(userId);
     }
   }
 

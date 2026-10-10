@@ -21,7 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
   @Query(value = """
       INSERT INTO users (id, money, country, state, created_at)
       VALUES (:id, :money, :country, CAST(:state as jsonb), :createdAt)
-      ON CONFLICT (:id) DO UPDATE 
+      ON CONFLICT (id) DO UPDATE
       SET money = excluded.money,
           state = excluded.state
       WHERE users.country = excluded.country
