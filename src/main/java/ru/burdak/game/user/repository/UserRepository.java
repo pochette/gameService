@@ -15,7 +15,7 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
   List<User> findAllByCountry(String country, Pageable pageable);
 
-  Long countByCountryAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(String country, Instant from, Instant to);
+  long countByCountryAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(String country, Instant from, Instant to);
 
   @Modifying
   @Query(value = """

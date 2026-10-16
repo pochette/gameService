@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Game Service - Endpoint Checks",
-    "description": "Run the entire collection in order with Collection Runner. Request 01 creates fresh UUIDs, a unique alphabetic country and a UTC period around the current time. Tests match the current API: wrapped user state and numeric new-user count. Test users remain in the database. No authentication is configured.",
+    "description": "Run the entire collection in order with Collection Runner. Request 01 creates fresh UUIDs, a unique alphabetic country and a UTC period around the current time. Tests match the current API: wrapped user state and new-user count wrapped as {count}. Test users remain in the database. No authentication is configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -462,7 +462,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
-              "pm.test('Updates do not create users', () => pm.expect(pm.response.json()).to.eql(2));"
+              "pm.test('Updates do not create users', () => pm.expect(pm.response.json()).to.deep.eql({count:2}));"
             ]
           }
         }

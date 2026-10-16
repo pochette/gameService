@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ru.burdak.game.statistic.dto.NewUsersResponseDto;
 import ru.burdak.game.statistic.service.StatisticService;
 
 import java.time.OffsetDateTime;
@@ -24,17 +25,17 @@ public class StatisticController {
   private final StatisticService statisticService;
 
   @GetMapping("/new-users")
-  public Long getCountOfUserFrom(HttpServletRequest request,
+  public NewUsersResponseDto getCountOfUserFrom(HttpServletRequest request,
 
-                                 @RequestParam(name = "country")
+                                                @RequestParam(name = "country")
                                  @NotBlank
                                  @Pattern(regexp = "[A-Za-z]{1,255}")
                                  String country,
 
-                                 @RequestParam(name = "from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                                                @RequestParam(name = "from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
                                  OffsetDateTime from,
 
-                                 @RequestParam(name = "to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                                                @RequestParam(name = "to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
                                  OffsetDateTime to) {
     log.info("Получен запрос {} {} на получение количества новых пользователей, country={}, from={}, to={}", request.getMethod(),
              request.getRequestURI(), country, from, to);
